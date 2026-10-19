@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Contract tests pin the Langfuse SDK behavior the library relies on: the prompt client fields,
+  the cache serving a fresh entry as the same object and a stale one without blocking, and the
+  rendering rules. CI runs the suite on the lowest supported `langfuse` and a nightly workflow on
+  the latest 5.x release.
+- Documentation site in English and Russian, published to GitHub Pages; the README is now a short
+  pitch with an animated demo and links there. `README.ru.md` mirrors `README.md`.
+- `examples/`: one short script per feature.
+- `CHANGELOG.md`.
+
+### Changed
+
+- Prompts are compared by name, version, content and config in the library itself instead of the
+  SDK `__eq__`; the template renderer is a copy of the SDK one, checked against it by a contract
+  test. Nothing from the private SDK modules is imported at run time.
+- The sdist contains the package, the tests and the changelog only.
+
 ## [0.1.0] - 2026-10-19
 
 ### Added
@@ -24,8 +42,6 @@ All notable changes to this project are documented here. The format follows
   every rebuild.
 - `LangfusePromptTemplate` renders prompts with the Langfuse substitution rules, placeholders
   included, and attaches the prompt to the trace metadata.
-- Contract tests pin the Langfuse SDK behavior the library relies on; CI runs them on the lowest
-  supported `langfuse` and a nightly workflow on the latest release.
 
 [Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/rusih100/langfuse-hotswap/releases/tag/v0.1.0
