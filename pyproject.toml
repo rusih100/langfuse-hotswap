@@ -30,6 +30,12 @@ dependencies = [
     "typing-extensions>=4.12",
 ]
 
+[project.urls]
+Homepage = "https://github.com/rusih100/langfuse-hotswap"
+Repository = "https://github.com/rusih100/langfuse-hotswap"
+Issues = "https://github.com/rusih100/langfuse-hotswap/issues"
+Releases = "https://github.com/rusih100/langfuse-hotswap/releases"
+
 [dependency-groups]
 dev = [
     "pytest",

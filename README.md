@@ -2,8 +2,8 @@
 
 [![PyPI](https://img.shields.io/pypi/v/langfuse-hotswap)](https://pypi.org/project/langfuse-hotswap/)
 [![Python](https://img.shields.io/pypi/pyversions/langfuse-hotswap)](https://pypi.org/project/langfuse-hotswap/)
-[![CI](https://img.shields.io/badge/CI-GitHub_Actions-blue)](.github/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![CI](https://github.com/rusih100/langfuse-hotswap/actions/workflows/ci.yml/badge.svg)](https://github.com/rusih100/langfuse-hotswap/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/rusih100/langfuse-hotswap/blob/main/LICENSE)
 
 Hot-swap the LLM behind a [LangChain](https://github.com/langchain-ai/langchain) chain from a
 [Langfuse](https://langfuse.com) prompt. The model and its parameters live in the prompt config,
@@ -371,7 +371,7 @@ uv run ruff check . && uv run ruff format --check . && uv run ty check
 The version comes from the git tag. To release, publish a GitHub Release with a `v*` tag, for
 example `v0.2.0`, and generate its notes from the pull requests. The release workflow builds the
 package and publishes it to PyPI. The history of versions is the
-[releases page](../../releases).
+[releases page](https://github.com/rusih100/langfuse-hotswap/releases).
 
 ## License
 
