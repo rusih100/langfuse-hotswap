@@ -1,0 +1,23 @@
+# Mac OS
+.DS_Store
+
+# JetBrains
+.idea
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+
+# Distribution / packaging
+src/langfuse_hotswap/_version.py
+build/
+dist/
+*.egg-info/
+
+# Environments and secrets
+.venv/
+.env
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
