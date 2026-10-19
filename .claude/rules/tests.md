@@ -7,6 +7,9 @@ paths:
 
 - One test module per source module: `test_config.py`, `test_runnable.py`, `test_template.py`,
   `test_factory.py`. Inside a module, group tests under `# Section` comments.
+- `test_sdk_contract.py` pins the Langfuse SDK behavior the library relies on. It is the one
+  module that uses a real `Langfuse` client (tracing disabled, unreachable host, `api.prompts`
+  stubbed) and may import SDK internals. A new assumption about the SDK gets a test there.
 - Every test has a docstring with one sentence that states the behavior under test, in the
   present tense: "A version that fails to build is served by the previous chain and logged once."
   Not "Tests that…", not the implementation.

@@ -711,6 +711,32 @@ async def test_ainvoke_fetches_in_the_executor_after_a_failure_or_without_cache(
     assert threading.get_ident() not in threads
 
 
+async def test_prompt_without_is_fallback_is_fetched_in_the_executor(
+    factory: LangfuseChainFactory, client: FakeLangfuse, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """
+    A prompt without the SDK ``is_fallback`` attribute is fetched in the executor on every ainvoke.
+    """
+
+    threads: list[int] = []
+    original = client.get_prompt
+
+    def get_prompt(name: str, **kwargs: Any) -> PromptClient:
+        threads.append(threading.get_ident())
+        prompt = original(name, **kwargs)
+        del prompt.is_fallback
+        return prompt
+
+    monkeypatch.setattr(client, "get_prompt", get_prompt)
+    chain = factory.create("culinary")
+    await chain.ainvoke({"dish": "borscht"})
+
+    result = await chain.ainvoke({"dish": "borscht"})
+
+    assert result.content == "fake-1|0.1|Ingredients of borscht|"
+    assert threading.get_ident() not in threads
+
+
 async def test_concurrent_async_cold_start_builds_once(
     factory: LangfuseChainFactory, init_calls: list[dict[str, Any]]
 ) -> None:

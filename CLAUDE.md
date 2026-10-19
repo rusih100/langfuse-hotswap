@@ -25,6 +25,7 @@ Run all four before reporting a change as done. CI runs the same on Python 3.11â
 | `src/langfuse_hotswap/_errors.py` | `HotswapError`, `PromptFetchError`, `ChainBuildError` |
 | `tests/fakes.py`, `tests/conftest.py` | fake Langfuse client, fake chat model, `init_calls` fixture |
 | `tests/test_<module>.py` | one test module per source module |
+| `tests/test_sdk_contract.py` | the Langfuse SDK behavior the library relies on, run against a real client with a stubbed API |
 
 The public API is what `src/langfuse_hotswap/__init__.py` imports. Modules are private (`_name.py`).
 
@@ -35,6 +36,9 @@ The public API is what `src/langfuse_hotswap/__init__.py` imports. Modules are p
 - Blocked config keys (`is_blocked_config_key`) never reach the model, whatever the allowlist says.
 - A broken prompt never takes down a working chain: the previous chain keeps serving.
 - The async path never blocks the event loop on HTTP when the SDK cache is cold.
+- Nothing from `langfuse.model` or `langfuse._utils` is imported at runtime. Every assumption
+  about the SDK (prompt fields, cache behavior, rendering) is pinned by a test in
+  `tests/test_sdk_contract.py`.
 
 Behavior changes go together with tests and the README.
 

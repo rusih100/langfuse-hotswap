@@ -370,9 +370,10 @@ class LangfusePromptRunnable(Runnable[dict[str, Any], Output]):
         """
 
         built = self._built
+        # A prompt without the SDK ``is_fallback`` attribute is treated as a fallback.
         return (
             built is not None
-            and not built.prompt.is_fallback
+            and not getattr(built.prompt, "is_fallback", True)
             and self._prompt_kwargs.get("cache_ttl_seconds") != 0
             and self._fetch_failed_at is None
         )
@@ -455,11 +456,11 @@ class LangfusePromptRunnable(Runnable[dict[str, Any], Output]):
         """
 
         built = self._built
-        if built is not None and (built.prompt is prompt or built.prompt == prompt):
+        if built is not None and (built.prompt is prompt or _same_prompt(built.prompt, prompt)):
             return built.chain
 
         failed = self._failed
-        if failed is None or failed.prompt != prompt or time.monotonic() - failed.at >= 60:
+        if failed is None or not _same_prompt(failed.prompt, prompt) or time.monotonic() - failed.at >= 60:
             return None
         if built is None:
             raise ChainBuildError(str(failed.error)) from failed.error
@@ -499,6 +500,14 @@ class LangfusePromptRunnable(Runnable[dict[str, Any], Output]):
         for hook, accepts_prompt in self._hooks:
             model = hook(model, prompt=prompt) if accepts_prompt else hook(model)
         return model
+
+
+def _same_prompt(a: PromptClient, b: PromptClient) -> bool:
+    """
+    Returns whether two prompts have the same name, version, content and config.
+    """
+
+    return a.name == b.name and a.version == b.version and a.prompt == b.prompt and a.config == b.config
 
 
 def _accepts_prompt(hook: Callable[..., Any]) -> bool:
