@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-19
+
 ### Added
 
 - Contract tests pin the Langfuse SDK behavior the library relies on: the prompt client fields,
@@ -43,5 +45,6 @@ All notable changes to this project are documented here. The format follows
 - `LangfusePromptTemplate` renders prompts with the Langfuse substitution rules, placeholders
   included, and attaches the prompt to the trace metadata.
 
-[Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rusih100/langfuse-hotswap/releases/tag/v0.1.0
