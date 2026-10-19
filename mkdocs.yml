@@ -1,0 +1,80 @@
+site_name: langfuse-hotswap
+site_description: Hot-swap the LLM behind a LangChain chain from a Langfuse prompt
+site_url: https://rusih100.github.io/langfuse-hotswap/
+repo_url: https://github.com/rusih100/langfuse-hotswap
+repo_name: rusih100/langfuse-hotswap
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.footer
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+nav:
+  - Overview: index.md
+  - Quickstart: quickstart.md
+  - Guide:
+      - How it works: how-it-works.md
+      - Configuration: configuration.md
+      - Security: security.md
+      - Customizing the model: customizing.md
+      - Error handling: errors.md
+      - Templates: templates.md
+  - Development: development.md
+
+plugins:
+  - search
+  # docs/en and docs/ru; a page missing in ru falls back to the English one.
+  - i18n:
+      docs_structure: folder
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: ru
+          name: Русский
+          build: true
+          site_description: Горячая замена LLM в LangChain-цепочке из промпта Langfuse
+          nav_translations:
+            Overview: Обзор
+            Quickstart: Быстрый старт
+            Guide: Руководство
+            How it works: Как это работает
+            Configuration: Конфигурация
+            Security: Безопасность
+            Customizing the model: Настройка модели
+            Error handling: Обработка ошибок
+            Templates: Шаблоны
+            Development: Разработка
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - tables
+  - toc:
+      permalink: true

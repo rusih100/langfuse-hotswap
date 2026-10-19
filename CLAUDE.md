@@ -10,6 +10,7 @@ built for it; the chain is rebuilt when the prompt changes.
 uv sync                                   # install with the dev group
 uv run pytest -q                          # tests
 uv run ruff format . && uv run ruff check . && uv run ty check
+uv run mkdocs build --strict                # after a docs change
 ```
 
 Run all four before reporting a change as done. CI runs the same on Python 3.11â€“3.13.
@@ -26,6 +27,11 @@ Run all four before reporting a change as done. CI runs the same on Python 3.11â
 | `tests/fakes.py`, `tests/conftest.py` | fake Langfuse client, fake chat model, `init_calls` fixture |
 | `tests/test_<module>.py` | one test module per source module |
 | `tests/test_sdk_contract.py` | the Langfuse SDK behavior the library relies on, run against a real client with a stubbed API |
+| `examples/` | one short script per feature, flat, named by the feature; linted and type-checked, not tested |
+| `docs/en`, `docs/ru`, `mkdocs.yml` | the documentation site (MkDocs Material + static-i18n, GitHub Pages); the README holds only the pitch and links there |
+| `README.md`, `README.ru.md` | the English and the Russian pitch, kept in sync |
+| `tools/render_demo_gif.py` | renders `docs/assets/demo.gif`, the README animation, with Pillow |
+| `CHANGELOG.md` | Keep a Changelog format; every user-visible change gets a line under `Unreleased` |
 
 The public API is what `src/langfuse_hotswap/__init__.py` imports. Modules are private (`_name.py`).
 
@@ -40,7 +46,7 @@ The public API is what `src/langfuse_hotswap/__init__.py` imports. Modules are p
   about the SDK (prompt fields, cache behavior, rendering) is pinned by a test in
   `tests/test_sdk_contract.py`.
 
-Behavior changes go together with tests and the README.
+Behavior changes go together with tests, the docs in both languages and a line in `CHANGELOG.md`.
 
 ## Conventions
 

@@ -32,6 +32,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/rusih100/langfuse-hotswap"
+Documentation = "https://rusih100.github.io/langfuse-hotswap/"
 Repository = "https://github.com/rusih100/langfuse-hotswap"
 Issues = "https://github.com/rusih100/langfuse-hotswap/issues"
 Releases = "https://github.com/rusih100/langfuse-hotswap/releases"
@@ -43,6 +44,16 @@ dev = [
     "ruff",
     "ty",
 ]
+docs = [
+    "mkdocs-material",
+    "mkdocs-static-i18n",
+]
+tools = [
+    "pillow",
+]
+
+[tool.uv]
+default-groups = ["dev", "docs", "tools"]
 
 [tool.hatch.version]
 source = "vcs"
@@ -53,6 +64,11 @@ version-file = "src/langfuse_hotswap/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/langfuse_hotswap"]
+
+# The sdist carries the package, the tests and the changelog; the readme, the license and
+# pyproject.toml are added by hatchling. Tooling, workflows and examples stay out.
+[tool.hatch.build.targets.sdist]
+only-include = ["src/langfuse_hotswap", "tests", "CHANGELOG.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -106,6 +122,8 @@ ignore = [
 "__init__.py" = ["F401"]
 "conftest.py" = ["F401"]
 "tests/**" = ["S101"]
+# The examples are scripts that print their output.
+"examples/**" = ["T20"]
 # The Runnable interface names the argument ``input``.
 "src/langfuse_hotswap/_runnable.py" = ["A002"]
 
