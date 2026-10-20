@@ -17,8 +17,6 @@ from langfuse._utils.prompt_cache import PromptCacheItem
 from langfuse.api import ChatMessage, PlaceholderMessage, Prompt_Chat, Prompt_Text
 from langfuse.model import TemplateParser
 
-from langfuse_hotswap._template import _render, _variables
-
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -226,21 +224,23 @@ def test_updating_a_prompt_drops_the_cache_entries_whose_name_starts_with_its_na
 
 
 @pytest.mark.parametrize(
-    "template",
+    ("template", "variables", "rendered"),
     [
-        "Ingredients of {{dish}}",
-        "{{ dish }} and {{dish}}",
-        "{{a.b}} {{{raw}}} {{#flag}}x{{/flag}} {{n}} {{none}} {{items}}",
-        "{{ my-var }} {{user name}} {{}}",
-        "unclosed {{dish and {{other}}",
-        'JSON {"a": 1}, LaTeX \\frac{a}{b}',
-        "{{missing}} stays",
-        "",
+        ("Ingredients of {{dish}}", ["dish"], "Ingredients of borscht"),
+        ("{{ dish }} and {{dish}}", ["dish", "dish"], "borscht and borscht"),
+        ("{{a.b}} {{{raw}}} {{#flag}}x{{/flag}}", ["a.b", "{raw", "#flag", "/flag"], "flat R} x"),
+        ("{{n}} {{none}} {{items}}", ["n", "none", "items"], "1  [1, 2]"),
+        ("{{ my-var }} {{user name}} {{}}", ["my-var", "user name", ""], "<a> <b> empty"),
+        ("unclosed {{dish and {{other}}", ["dish and {{other"], "unclosed {{dish and {{other}}"),
+        ('JSON {"a": 1}, LaTeX \\frac{a}{b}', [], 'JSON {"a": 1}, LaTeX \\frac{a}{b}'),
+        ("{{missing}} stays", ["missing"], "{{missing}} stays"),
+        ("", [], ""),
     ],
 )
-def test_rendering_matches_the_sdk_template_parser(template: str) -> None:
+def test_template_parser_rendering_rules(template: str, variables: list[str], rendered: str) -> None:
     """
-    The vendored renderer finds the same variables and produces the same text as the SDK TemplateParser.
+    TemplateParser takes the stripped text between {{ and }} as a variable, inserts str(value) without
+    escaping, None as an empty string, and leaves missing variables and everything else as is.
     """
 
     values = {
@@ -255,8 +255,7 @@ def test_rendering_matches_the_sdk_template_parser(template: str) -> None:
         "my-var": "<a>",
         "user name": "<b>",
         "": "empty",
-        "other": "o",
     }
 
-    assert [v.name for v in _variables(template)] == TemplateParser.find_variable_names(template)
-    assert _render(template, values) == TemplateParser.compile_template(template, values)
+    assert TemplateParser.find_variable_names(template) == variables
+    assert TemplateParser.compile_template(template, values) == rendered

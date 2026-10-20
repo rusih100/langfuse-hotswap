@@ -1,43 +1,39 @@
 """
-Chat prompt template that renders Langfuse prompts with the Langfuse substitution rules.
+Chat prompt template that renders Langfuse prompts with the Langfuse substitution rules or a LangChain format.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, ChatMessage, HumanMessage, SystemMessage
 from langchain_core.messages.utils import convert_to_messages
 from langchain_core.prompts.chat import BaseChatPromptTemplate
+from langchain_core.prompts.string import DEFAULT_FORMATTER_MAPPING, get_template_variables
+from langfuse.model import TemplateParser
 
 if TYPE_CHECKING:
     from langfuse.model import PromptClient
 
-
-class _Variable(NamedTuple):
-    """
-    A ``{{ name }}`` occurrence: the stripped name and the slice of the template it occupies.
-    """
-
-    name: str
-    start: int
-    end: int
+TemplateFormat = Literal["langfuse", "f-string", "mustache", "jinja2"]
 
 
 class LangfusePromptTemplate(BaseChatPromptTemplate):
     """
-    Renders the messages of a Langfuse prompt with the Langfuse substitution rules.
+    Renders the messages of a Langfuse prompt.
 
-    A variable is whatever stands between ``{{`` and the next ``}}``, stripped. A text prompt is a
-    single human message. A placeholder is filled from the input variable of the same name, which
+    ``langfuse`` renders with the SDK ``TemplateParser``: a variable is whatever stands between
+    ``{{`` and the next ``}}``, stripped. The other formats are the LangChain ones. A text prompt is
+    a single human message. A placeholder is filled from the input variable of the same name, which
     holds a list of messages. Roles LangChain does not know become ``ChatMessage`` with that role.
     """
 
     messages: list[dict[str, str]]
+    template_format: TemplateFormat = "langfuse"
 
     @classmethod
-    def from_prompt(cls, prompt: PromptClient) -> LangfusePromptTemplate:
+    def from_prompt(cls, prompt: PromptClient, template_format: TemplateFormat = "langfuse") -> LangfusePromptTemplate:
         """
         Builds the template from ``prompt`` and attaches the prompt as ``metadata["langfuse_prompt"]``.
         """
@@ -55,11 +51,12 @@ class LangfusePromptTemplate(BaseChatPromptTemplate):
                 names = [message["name"]]
                 input_types[message["name"]] = list[AnyMessage]
             else:
-                names = [variable.name for variable in _variables(message["content"])]
+                names = cls._variables(message["content"], template_format)
             variables.extend(name for name in names if name not in variables)
 
         return cls(
             messages=messages,
+            template_format=template_format,
             input_variables=variables,
             input_types=input_types,
             metadata={"langfuse_prompt": prompt},
@@ -77,7 +74,9 @@ class LangfusePromptTemplate(BaseChatPromptTemplate):
         result: list[BaseMessage] = []
         for message in self.messages:
             if message["type"] != "placeholder":
-                result.append(_message(message["role"], _render(message["content"], kwargs)))
+                result.append(
+                    self._message(message["role"], self._render(message["content"], kwargs, self.template_format))
+                )
                 continue
 
             value = kwargs[message["name"]]
@@ -97,52 +96,37 @@ class LangfusePromptTemplate(BaseChatPromptTemplate):
             for message in self.messages
         )
 
+    @staticmethod
+    def _variables(content: str, template_format: TemplateFormat) -> list[str]:
+        """
+        Returns the variables of ``content`` in the order the template engine reports them.
+        """
 
-def _render(content: str, values: Mapping[str, Any]) -> str:
-    """
-    Replaces every variable of ``content`` found in ``values`` with ``str(value)``, ``None`` with
-    an empty string. Variables missing from ``values`` are left as they are.
-    """
+        if template_format == "langfuse":
+            return TemplateParser.find_variable_names(content)
+        return get_template_variables(content, template_format)
 
-    parts: list[str] = []
-    index = 0
-    for variable in _variables(content):
-        parts.append(content[index : variable.start])
-        if variable.name in values:
-            value = values[variable.name]
-            parts.append("" if value is None else str(value))
-        else:
-            parts.append(content[variable.start : variable.end])
-        index = variable.end
-    parts.append(content[index:])
+    @staticmethod
+    def _render(content: str, values: dict[str, Any], template_format: TemplateFormat) -> str:
+        """
+        Renders ``content`` with ``values`` through the template engine.
+        """
 
-    return "".join(parts)
+        if template_format == "langfuse":
+            return TemplateParser.compile_template(content, values)
+        return DEFAULT_FORMATTER_MAPPING[template_format](content, **values)
 
+    @staticmethod
+    def _message(role: str, content: str) -> BaseMessage:
+        """
+        Maps a Langfuse role to a LangChain message.
+        """
 
-def _variables(content: str) -> Iterator[_Variable]:
-    """
-    Yields the variables of ``content`` in order of appearance.
-    """
+        if role == "system":
+            return SystemMessage(content)
+        if role in ("user", "human"):
+            return HumanMessage(content)
+        if role in ("assistant", "ai"):
+            return AIMessage(content)
 
-    index = 0
-    while (start := content.find("{{", index)) != -1:
-        close = content.find("}}", start)
-        if close == -1:
-            return
-        index = close + 2
-        yield _Variable(content[start + 2 : close].strip(), start, index)
-
-
-def _message(role: str, content: str) -> BaseMessage:
-    """
-    Maps a Langfuse role to a LangChain message.
-    """
-
-    if role == "system":
-        return SystemMessage(content)
-    if role in ("user", "human"):
-        return HumanMessage(content)
-    if role in ("assistant", "ai"):
-        return AIMessage(content)
-
-    return ChatMessage(content=content, role=role)
+        return ChatMessage(content=content, role=role)

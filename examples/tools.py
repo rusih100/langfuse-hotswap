@@ -4,6 +4,7 @@ Bind tools to the model.
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
 from langfuse import get_client
 
 from langfuse_hotswap import LangfuseChainFactory
@@ -18,7 +19,7 @@ def open_ticket(summary: str) -> str:
     return "TICKET-42"
 
 
-factory = LangfuseChainFactory(get_client())
+factory = LangfuseChainFactory(get_client(), models={"openai": ChatOpenAI(model="gpt-5.5")})
 chain = factory.create("support-reply").bind_tools([open_ticket])
 
 message = chain.invoke({"product": "Acme Mail", "language": "English", "question": "I was charged twice."})

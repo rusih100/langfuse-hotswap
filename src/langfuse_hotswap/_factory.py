@@ -1,50 +1,59 @@
 """
-Factory that shares the Langfuse client and the model kwargs between runnables.
+Factory that shares the Langfuse client, the chat models and the config allowlist between runnables.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from langfuse_hotswap._config import DEFAULT_ALLOWED_CONFIG_KEYS, normalize_provider
+from langfuse_hotswap._prompts import PromptManager
 from langfuse_hotswap._runnable import LangfusePromptRunnable
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
 
+    from langchain_core.language_models import BaseChatModel
     from langchain_core.messages import BaseMessage
     from langfuse import Langfuse
-    from langfuse.model import ChatMessageDict
+    from langfuse.model import PromptClient
+
+    from langfuse_hotswap._template import TemplateFormat
 
 
 class LangfuseChainFactory:
     """
-    Creates ``LangfusePromptRunnable`` instances that share the Langfuse client and the model kwargs.
+    Creates ``LangfusePromptRunnable`` instances over the chat models built in the code.
     """
 
     def __init__(
         self,
         client: Langfuse,
+        models: Mapping[str, BaseChatModel],
         *,
-        providers: Mapping[str, Mapping[str, Any]] | None = None,
-        allowed_config_keys: Iterable[str] | None = DEFAULT_ALLOWED_CONFIG_KEYS,
-        **model_kwargs: Any,
+        allowed_config_keys: Iterable[str] | Literal["any"] | None = None,
+        label: str | None = None,
+        template_format: TemplateFormat = "langfuse",
     ) -> None:
         """
-        ``model_kwargs`` are passed to every provider, ``providers`` maps a provider name to the
-        kwargs passed only to that provider. Both override the prompt config.
+        ``models`` maps a name to a chat model; the prompt config selects one of them with ``provider``.
 
-        Only ``allowed_config_keys`` are taken from the config; ``None`` takes every key that is not
-        blocked by ``is_blocked_config_key``. With ``providers`` the config may select only them.
+        ``allowed_config_keys`` names the model fields the config may override: ``None`` lets it
+        override nothing, ``"any"`` every field. ``label`` is the prompt label ``create`` uses when
+        it is given neither a label nor a version. ``template_format`` renders the prompts whose
+        config does not name one, or may not.
         """
 
-        if isinstance(allowed_config_keys, str):
-            raise TypeError("allowed_config_keys must be a collection of strings, not a string")
+        if not models:
+            raise ValueError("models must not be empty")
+        if isinstance(allowed_config_keys, str) and allowed_config_keys != "any":
+            raise TypeError("allowed_config_keys must be a collection of strings, 'any' or None")
 
         self._client = client
-        self._providers = {normalize_provider(name): dict(kwargs) for name, kwargs in (providers or {}).items()}
-        self._allowed_config_keys = None if allowed_config_keys is None else frozenset(allowed_config_keys)
-        self._model_kwargs = model_kwargs
+        self._models = dict(models)
+        self._allowed = "any" if allowed_config_keys == "any" else frozenset(allowed_config_keys or ())
+        self._default_provider = next(iter(self._models)) if len(self._models) == 1 else None
+        self._label = label
+        self._template_format = template_format
 
     def create(
         self,
@@ -52,37 +61,78 @@ class LangfuseChainFactory:
         *,
         label: str | None = None,
         version: int | None = None,
-        cache_ttl_seconds: int | None = None,
-        fallback: str | list[ChatMessageDict] | None = None,
-        max_retries: int | None = None,
-        fetch_timeout_seconds: int | None = None,
+        **get_prompt_kwargs: Any,
     ) -> LangfusePromptRunnable[BaseMessage]:
         """
         Returns a runnable for ``prompt_name``.
 
-        ``label`` or ``version`` selects the prompt, the ``production`` label by default. The other
-        arguments are passed to ``get_prompt``; ``fallback`` is a string for a text prompt and a list
-        of messages for a chat prompt.
+        ``label`` or ``version`` selects the prompt; without both, the factory label, or the
+        ``production`` label. ``get_prompt_kwargs``, such as ``cache_ttl_seconds``, are passed to
+        ``client.get_prompt``.
         """
 
         if not prompt_name:
             raise ValueError("prompt_name must not be empty")
         if label is not None and version is not None:
             raise ValueError("label and version cannot be used together")
+        if label is None and version is None:
+            label = self._label
+        if "fallback" in get_prompt_kwargs:
+            raise TypeError("fallback is not supported, use with_fallbacks with a local chain for a cold start")
 
-        return LangfusePromptRunnable(
-            self._client,
-            prompt_name,
-            prompt_kwargs={
-                "label": label,
-                "version": version,
-                "type": "chat" if isinstance(fallback, list) else "text",
-                "cache_ttl_seconds": cache_ttl_seconds,
-                "fallback": fallback,
-                "max_retries": max_retries,
-                "fetch_timeout_seconds": fetch_timeout_seconds,
-            },
-            model_kwargs=self._model_kwargs,
-            provider_kwargs=self._providers,
-            allowed_config_keys=self._allowed_config_keys,
-        )
+        prompt_kwargs = {"label": label, "version": version, **get_prompt_kwargs}
+        prompts: PromptManager[Any] = PromptManager(self._client, prompt_name, prompt_kwargs)
+        return LangfusePromptRunnable(prompts, self._model_for, self._template_format_for)
+
+    def _model_for(self, prompt: PromptClient) -> BaseChatModel:
+        """
+        Returns the model selected by ``provider`` in the prompt config with the allowed config keys applied.
+
+        Without ``provider`` the only model is selected. The config keys other than ``provider`` and
+        ``template_format`` are passed to the constructor of the model class together with the
+        fields of the selected model.
+        """
+
+        config = self._config(prompt)
+        name = config.get("provider", self._default_provider)
+        if not isinstance(name, str) or name not in self._models:
+            raise ValueError(f"provider {name!r} is not one of {sorted(self._models)}")
+
+        base = self._models[name]
+        params = {k: v for k, v in config.items() if k not in ("provider", "template_format") and self._allows(k)}
+        if not params:
+            return base
+
+        # A field the config sets, by name or alias, is left out, so the config value wins whatever a validator prefers.
+        model_fields = type(base).model_fields
+        fields = {
+            field: value
+            for field, value in base.__dict__.items()
+            if field in model_fields and field not in params and model_fields[field].alias not in params
+        }
+        return type(base)(**{**fields, **params})
+
+    def _template_format_for(self, prompt: PromptClient) -> TemplateFormat:
+        """
+        Returns ``template_format`` from the prompt config when the allowlist permits it, else the factory one.
+        """
+
+        config = self._config(prompt)
+        if "template_format" in config and self._allows("template_format"):
+            return config["template_format"]
+        return self._template_format
+
+    def _allows(self, key: str) -> bool:
+        """
+        Returns whether the config may set ``key``.
+        """
+
+        return self._allowed == "any" or key in self._allowed
+
+    @staticmethod
+    def _config(prompt: PromptClient) -> dict[str, Any]:
+        """
+        Returns the prompt config, an empty dict when it is not a dict.
+        """
+
+        return prompt.config if isinstance(prompt.config, dict) else {}

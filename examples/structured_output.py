@@ -2,6 +2,7 @@
 Parse the reply into a Pydantic model.
 """
 
+from langchain_openai import ChatOpenAI
 from langfuse import get_client
 from pydantic import BaseModel
 
@@ -17,7 +18,7 @@ class Reply(BaseModel):
     escalate_to_human: bool
 
 
-factory = LangfuseChainFactory(get_client())
+factory = LangfuseChainFactory(get_client(), models={"openai": ChatOpenAI(model="gpt-5.5")})
 chain = factory.create("support-reply").with_structured_output(Reply)
 
 reply = chain.invoke({"product": "Acme Mail", "language": "English", "question": "I was charged twice."})

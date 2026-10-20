@@ -29,13 +29,16 @@ theme:
 nav:
   - Overview: index.md
   - Quickstart: quickstart.md
+  - Concepts: concepts.md
   - Guide:
-      - How it works: how-it-works.md
-      - Configuration: configuration.md
-      - Security: security.md
+      - Models and config keys: models.md
+      - Prompt versions: prompts.md
+      - Templates: templates.md
       - Customizing the model: customizing.md
       - Error handling: errors.md
-      - Templates: templates.md
+      - Security: security.md
+  - How it works: how-it-works.md
+  - API reference: api.md
   - Development: development.md
 
 plugins:
@@ -58,13 +61,16 @@ plugins:
           nav_translations:
             Overview: Обзор
             Quickstart: Быстрый старт
+            Concepts: Понятия
             Guide: Руководство
-            How it works: Как это работает
-            Configuration: Конфигурация
-            Security: Безопасность
+            Models and config keys: Модели и ключи конфигурации
+            Prompt versions: Версии промптов
+            Templates: Шаблоны
             Customizing the model: Настройка модели
             Error handling: Обработка ошибок
-            Templates: Шаблоны
+            Security: Безопасность
+            How it works: Как это работает
+            API reference: Справочник API
             Development: Разработка
 
 markdown_extensions:

@@ -2,14 +2,16 @@
 Select the prompt version by label or number.
 """
 
+from langchain_openai import ChatOpenAI
 from langfuse import get_client
 
 from langfuse_hotswap import LangfuseChainFactory
 
-factory = LangfuseChainFactory(get_client())
+# Without a label of its own, every chain of this factory follows "staging".
+factory = LangfuseChainFactory(get_client(), models={"openai": ChatOpenAI(model="gpt-5.5")}, label="staging")
 
-production = factory.create("support-reply")
-staging = factory.create("support-reply", label="staging")
+staging = factory.create("support-reply")
+production = factory.create("support-reply", label="production")
 pinned = factory.create("support-reply", version=1)
 
 question = {"product": "Acme Mail", "language": "English", "question": "How do I reset my password?"}

@@ -16,21 +16,27 @@
     and this config:
 
     ```json
-    {"model": "gpt-5.5", "model_provider": "openai", "temperature": 0.2, "max_tokens": 800}
+    {"provider": "openai", "model": "gpt-5.5", "temperature": 0.2, "max_tokens": 800}
     ```
 
-    Label the version `production`. The config keys are passed to the model constructor the same
-    way you would pass them to `init_chat_model`.
+    Label the version `production`. `provider` names one of the models you give the factory; the
+    other keys are constructor arguments of that model's class.
 
-3. **Create the chain once**, at startup or at module level, and reuse it. It is a regular
-   LangChain `Runnable`.
+3. **Build the models and the chain once**, at startup or at module level, and reuse the chain. It
+   is a regular LangChain `Runnable`.
 
     ```python
+    from langchain_anthropic import ChatAnthropic
+    from langchain_openai import ChatOpenAI
     from langfuse import get_client
 
     from langfuse_hotswap import LangfuseChainFactory
 
-    factory = LangfuseChainFactory(get_client())
+    factory = LangfuseChainFactory(
+        get_client(),
+        models={"openai": ChatOpenAI(model="gpt-5.5"), "anthropic": ChatAnthropic(model="claude-sonnet-5-5")},
+        allowed_config_keys={"model", "temperature", "max_tokens"},
+    )
     chain = factory.create("support-reply")
     ```
 
@@ -44,7 +50,7 @@
 5. **Change the model in Langfuse.** Create a new version of `support-reply` with the config
 
     ```json
-    {"model": "claude-sonnet-5-5", "model_provider": "anthropic", "temperature": 0.2, "max_tokens": 800}
+    {"provider": "anthropic", "model": "claude-sonnet-5-5", "temperature": 0.2, "max_tokens": 800}
     ```
 
     and move the `production` label to it. The next `chain.invoke(...)` runs on Anthropic. No
@@ -73,6 +79,8 @@
     ```python
     # env: LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_BASE_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY
 
+    from langchain_anthropic import ChatAnthropic
+    from langchain_openai import ChatOpenAI
     from langfuse import get_client
     from pydantic import BaseModel
 
@@ -84,7 +92,11 @@
         escalate_to_human: bool
 
 
-    factory = LangfuseChainFactory(get_client())
+    factory = LangfuseChainFactory(
+        get_client(),
+        models={"openai": ChatOpenAI(model="gpt-5.5"), "anthropic": ChatAnthropic(model="claude-sonnet-5-5")},
+        allowed_config_keys={"model", "temperature", "max_tokens"},
+    )
 
     chain = factory.create("support-reply")
     typed_chain = chain.with_structured_output(Reply)

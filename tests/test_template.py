@@ -10,10 +10,12 @@ import pytest
 
 from langchain_core.messages import HumanMessage
 
-from .fakes import RecordingHandler
+from langfuse_hotswap import ChainBuildError, LangfuseChainFactory
+
+from .fakes import FakeChatModel, RecordingHandler
 
 if TYPE_CHECKING:
-    from langfuse_hotswap import LangfuseChainFactory
+    from langfuse_hotswap._template import TemplateFormat
 
     from .fakes import FakeLangfuse
 
@@ -85,8 +87,7 @@ def test_pretty_repr(factory: LangfuseChainFactory, client: FakeLangfuse) -> Non
     chain = factory.create("culinary")
     chain.invoke({"dish": "borscht", "history": []})
 
-    assert chain._built is not None
-    prompt = cast("Any", chain._built[1].get_prompts()[0])
+    prompt = cast("Any", chain._prompts._built).value.get_prompts()[0]
     assert prompt.pretty_repr() == "system: You are a cook.\n[placeholder history]\nuser: {{dish}}"
 
 
@@ -122,7 +123,7 @@ def test_rendering_matches_langfuse_compile(factory: LangfuseChainFactory, clien
 
 def test_mustache_sections_are_variables_not_sections(factory: LangfuseChainFactory, client: FakeLangfuse) -> None:
     """
-    Mustache sections are not supported: {{#flag}} is a variable named #flag.
+    Mustache sections are not supported by default: {{#flag}} is a variable named #flag.
     """
 
     client.messages = [("user", "{{#flag}}yes{{/flag}}")]
@@ -150,6 +151,108 @@ def test_missing_variable_raises(factory: LangfuseChainFactory) -> None:
 
     with pytest.raises(KeyError, match="dish"):
         factory.create("culinary").invoke({})
+
+
+# Formats
+
+
+def formatted(client: FakeLangfuse, template_format: TemplateFormat) -> LangfuseChainFactory:
+    """
+    Factory over ``client`` with every config key allowed, whose prompts render as ``template_format``.
+    """
+
+    return LangfuseChainFactory(
+        cast("Any", client),
+        {"fake": FakeChatModel(model="fake-0")},
+        allowed_config_keys="any",
+        template_format=template_format,
+    )
+
+
+def test_mustache_renders_sections_and_escapes_html(client: FakeLangfuse) -> None:
+    """
+    The mustache format renders sections and escapes HTML like the LangChain prompt templates.
+    """
+
+    client.messages = [("user", "{{#vip}}VIP {{/vip}}{{ name }}")]
+    chain = formatted(client, "mustache").create("culinary")
+
+    result = chain.invoke({"vip": True, "name": "<b>"})
+
+    assert result.content == "fake-1|0.1|VIP &lt;b&gt;|"
+    assert set(cast("Any", chain.get_input_schema()).model_json_schema()["properties"]) == {"vip", "name"}
+
+
+def test_f_string_renders_single_braces(client: FakeLangfuse) -> None:
+    """
+    The f-string format renders {name} and requires the variable.
+    """
+
+    client.messages = [("user", "Ingredients of {dish}")]
+    chain = formatted(client, "f-string").create("culinary")
+
+    assert chain.invoke({"dish": "borscht"}).content == "fake-1|0.1|Ingredients of borscht|"
+    with pytest.raises(KeyError, match="dish"):
+        chain.invoke({})
+
+
+def test_jinja2_renders_filters(client: FakeLangfuse) -> None:
+    """
+    The jinja2 format renders expressions with filters.
+    """
+
+    client.messages = [("user", "Ingredients of {{ dish | upper }}")]
+    chain = formatted(client, "jinja2").create("culinary")
+
+    result = chain.invoke({"dish": "borscht"})
+
+    assert result.content == "fake-1|0.1|Ingredients of BORSCHT|"
+    assert set(cast("Any", chain.get_input_schema()).model_json_schema()["properties"]) == {"dish"}
+
+
+def test_template_format_in_the_config_overrides_the_default(
+    factory: LangfuseChainFactory, client: FakeLangfuse
+) -> None:
+    """
+    template_format in the prompt config selects the renderer; without it the factory default applies.
+    """
+
+    client.messages = [("user", "Ingredients of {dish}")]
+    client.config = {"provider": "fake", "template_format": "f-string"}
+    from_config = factory.create("culinary").invoke({"dish": "borscht"})
+
+    client.config = {"provider": "fake"}
+    by_default = factory.create("culinary").invoke({"dish": "borscht"})
+
+    assert from_config.content == "fake-0|None|Ingredients of borscht|"
+    assert by_default.content == "fake-0|None|Ingredients of {dish}|"
+
+
+def test_unknown_template_format_in_the_config_is_a_build_error(
+    factory: LangfuseChainFactory, client: FakeLangfuse
+) -> None:
+    """
+    A template_format the library does not know fails the build.
+    """
+
+    client.config = {"provider": "fake", "template_format": "handlebars"}
+
+    with pytest.raises(ChainBuildError, match="handlebars"):
+        factory.create("culinary").invoke({"dish": "borscht"})
+
+
+def test_placeholders_work_in_every_format(client: FakeLangfuse) -> None:
+    """
+    A placeholder is filled from the input variable in the LangChain formats too.
+    """
+
+    client.messages = [("placeholder", "history"), ("user", "Ingredients of {dish}")]
+
+    result = (
+        formatted(client, "f-string").create("culinary").invoke({"dish": "borscht", "history": [HumanMessage("hi")]})
+    )
+
+    assert result.content == "fake-1|0.1|Ingredients of borscht|"
 
 
 # Input schema

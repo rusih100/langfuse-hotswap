@@ -5,8 +5,8 @@ All errors derive from `HotswapError`.
 ## `PromptFetchError`
 
 The prompt could not be fetched and the SDK cache was empty, for example on a cold start during an
-outage, or after the prompt was deleted. With a previously built chain, the error is logged no more
-often than once a minute and that chain keeps serving. Without one, it is raised.
+outage, or after the prompt was deleted. With a previously built chain, that chain keeps serving
+and the error is logged once, until a fetch succeeds again. Without one, it is raised.
 
 Recovery is up to you, for example a local chain as a fallback:
 
@@ -16,25 +16,22 @@ from langfuse_hotswap import PromptFetchError
 chain = factory.create("support-reply").with_fallbacks([local_chain], exceptions_to_handle=(PromptFetchError,))
 ```
 
-or a fallback prompt, built with the model from the factory kwargs (see
-[Configuration](configuration.md#selecting-the-prompt-version)).
-
 ## `ChainBuildError`
 
-The prompt was fetched but the chain could not be built: the config has no `model` or does not
-name the provider, the provider package is not installed, the model constructor rejected a
-parameter, a hook raised.
+The prompt was fetched but the chain could not be built: `provider` names a model the factory does
+not have or is missing with several models, the model constructor rejected a config value, a hook
+raised, the template format is not installed.
 
-With a previously built chain, the error is logged, that chain keeps serving and the build is
-retried no more often than once a minute. Without one, it is raised, and the calls of the next
-minute raise the same error without rebuilding, so a broken prompt on a cold start does not build
-a model per call.
+With a previously built chain, the error is logged once, that chain keeps serving and the build
+is retried when the prompt changes. Without one, it is raised, and every call raises the same
+error without rebuilding until the prompt changes, so a broken prompt on a cold start does not
+build a model per call.
 
 ## Batches
 
-With `return_exceptions=True`, `batch`, `abatch`, `batch_as_completed` and `abatch_as_completed`
-return the error for every item instead of raising. Empty inputs return an empty result without
-fetching the prompt.
+`batch`, `abatch`, `batch_as_completed` and `abatch_as_completed` are the inherited LangChain
+methods: they call `invoke` per input, and with `return_exceptions=True` return the error for every
+item instead of raising.
 
 ## Schemas
 

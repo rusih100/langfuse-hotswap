@@ -6,6 +6,42 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-20
+
+### Changed
+
+- **Breaking.** `LangfuseChainFactory` takes the chat models built in the code: `models` maps a
+  name to a `BaseChatModel`, and the prompt config selects one with `provider`. The models are
+  never changed; an override creates a new object of the same class from the fields of the
+  selected model and the config values, where a config key wins over the field it names or aliases.
+- **Breaking.** `allowed_config_keys` is explicit: `None`, the default, lets the config override
+  nothing; a set of keys overrides those fields; `"any"` passes every key. There is no default
+  allowlist and no blocked keys.
+- **Breaking.** The `langfuse` template format renders with the SDK `TemplateParser` instead of a
+  copy of it; the contract test pins its rules.
+- A version that fails to build is retried when the prompt changes instead of once a minute. A
+  failed fetch is logged once per outage instead of once a minute.
+- Concurrent first calls on a cold start fetch the prompt one at a time, so the SDK fetches once.
+- The fetch, the comparison and the rebuild moved from the runnable into `PromptManager`.
+
+### Added
+
+- `template_format`: `langfuse` (default), `f-string`, `mustache` and `jinja2`, the last one with
+  the `jinja2` extra. The prompt config key `template_format` selects it per prompt when
+  `allowed_config_keys` names it; the factory argument is the default.
+- `label` on the factory: the prompt label `create` uses when it gets neither a label nor a version.
+- `create` passes every keyword argument other than `label` and `version` to `get_prompt`.
+- `PromptManager` in the public API.
+
+### Removed
+
+- The factory kwargs (`model_kwargs`), `providers`, `DEFAULT_ALLOWED_CONFIG_KEYS`,
+  `is_blocked_config_key` and the normalization of provider names.
+- The `batch`, `abatch`, `batch_as_completed` and `abatch_as_completed` overrides; the inherited
+  LangChain methods call `invoke` per input.
+- `fallback` on `create`, which now rejects it. Use `with_fallbacks` with a local chain for a cold
+  start without Langfuse.
+
 ## [0.1.1] - 2026-10-19
 
 ### Added
@@ -45,6 +81,7 @@ All notable changes to this project are documented here. The format follows
 - `LangfusePromptTemplate` renders prompts with the Langfuse substitution rules, placeholders
   included, and attaches the prompt to the trace metadata.
 
-[Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rusih100/langfuse-hotswap/releases/tag/v0.1.0

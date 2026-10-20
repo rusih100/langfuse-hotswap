@@ -19,28 +19,29 @@
 интерфейсе, а сервис забирает актуальную версию. Модель при этом остаётся в коде — `gpt-5.5`,
 `temperature=0.2` прописаны рядом с цепочкой, и любое их изменение требует деплоя.
 
-`langfuse-hotswap` переносит модель в конфигурацию промпта. Библиотека предоставляет обычный
-[LangChain](https://github.com/langchain-ai/langchain) `Runnable`: при каждом вызове он получает
-промпт, собирает по его конфигурации цепочку `template | model` и пересобирает её, когда промпт
-меняется. Версия промпта объединяет шаблон, модель и параметры — они получают метку, выкатываются и
-откатываются как единое целое.
+`langfuse-hotswap` переносит модель в конфигурацию промпта. Чат-модели вы создаёте в коде, а
+библиотека предоставляет обычный [LangChain](https://github.com/langchain-ai/langchain)
+`Runnable`: при каждом вызове он получает промпт, выбирает по его конфигурации модель и параметры
+и пересобирает цепочку, когда промпт меняется. Версия промпта объединяет шаблон, модель и
+параметры — они получают метку, выкатываются и откатываются как единое целое.
 
-- **Любой провайдер**, поддерживаемый `init_chat_model`: OpenAI, Anthropic, Google, Mistral,
-  Ollama и другие.
-- **Безопасность по умолчанию.** Из конфигурации берутся только параметры генерации. Адреса,
-  ключи, заголовки и HTTP-клиенты из неё не читаются никогда. Настройки в коде имеют приоритет.
+- **Любая чат-модель LangChain.** `ChatOpenAI`, `ChatAnthropic`, `ChatOllama`, ... создаются в
+  коде и выбираются из конфигурации по имени.
+- **Только явно разрешённое.** Конфигурация меняет лишь те поля модели, которые разрешил код, и
+  ничего, пока он этого не сделал. Ключи, адреса и HTTP-клиенты остаются в коде.
 - **Устойчивость к сбоям.** Если новая версия не собирается или Langfuse недоступен, продолжает
   работать последняя исправная цепочка.
 - **Полноценный `Runnable`.** `invoke`, `stream`, `batch` и их асинхронные варианты,
   `with_structured_output`, `bind_tools`, композиция с другими runnable.
 - **Асинхронность без блокировок.** Прогретый кеш SDK читается в цикле событий, HTTP-запросы
   выполняются в пуле потоков.
+- **Правила подстановки Langfuse** — или `f-string`, `mustache` и `jinja2` по запросу.
 - **Трассировка привязана к версии промпта.**
 
 ## Установка
 
 ```shell
-pip install langfuse-hotswap langchain-openai
+pip install langfuse-hotswap langchain-openai langchain-anthropic
 ```
 
 ## Пример
@@ -49,22 +50,28 @@ pip install langfuse-hotswap langchain-openai
 конфигурацию:
 
 ```json
-{"model": "gpt-5.5", "model_provider": "openai", "temperature": 0.2, "max_tokens": 800}
+{"provider": "openai", "model": "gpt-5.5", "temperature": 0.2, "max_tokens": 800}
 ```
 
 ```python
+from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langfuse import get_client
 from langfuse_hotswap import LangfuseChainFactory
 
-factory = LangfuseChainFactory(get_client())
+factory = LangfuseChainFactory(
+    get_client(),
+    models={"openai": ChatOpenAI(model="gpt-5.5"), "anthropic": ChatAnthropic(model="claude-sonnet-5-5")},
+    allowed_config_keys={"model", "temperature", "max_tokens"},
+)
 chain = factory.create("support-reply")
 
 message = chain.invoke({"product": "Acme Mail", "language": "English", "question": "How do I reset my password?"})
 print(message.content)
 ```
 
-Теперь создайте новую версию промпта с параметрами `"model": "claude-sonnet-5-5",
-"model_provider": "anthropic"` и перенесите на неё метку `production`. Следующий вызов `invoke`
+Теперь создайте новую версию промпта с параметрами `"provider": "anthropic", "model":
+"claude-sonnet-5-5"` и перенесите на неё метку `production`. Следующий вызов `invoke`
 уйдёт в Anthropic. Верните метку обратно — и запросы снова пойдут в OpenAI. Без перезапуска и без
 деплоя.
 
@@ -77,22 +84,22 @@ print(message.content)
 ```python
 factory = LangfuseChainFactory(
     get_client(),
-    timeout=30,  # имеет приоритет над конфигурацией
-    providers={"openai": {...}, "anthropic": {...}},  # конфигурация может выбрать только одного из них
-    allowed_config_keys={"model", "model_provider", "temperature", "max_tokens"},
+    models={"openai": ChatOpenAI(api_key=..., timeout=30)},  # built here, credentials included
+    allowed_config_keys={"model", "temperature", "max_tokens"},  # the only keys the config may change
 )
 ```
 
-`base_url`, `api_key`, заголовки, прокси и подобные параметры не попадают в модель ни при каких
-настройках белого списка. Провайдер никогда не определяется по имени модели. Подробнее — в разделе
+`provider` выбирает одну из моделей. Без `allowed_config_keys` конфигурация больше ничего не
+меняет; со значением `"any"` она меняет всё, включая `base_url` и `api_key`. Подробнее — в разделе
 [Безопасность](https://rusih100.github.io/langfuse-hotswap/ru/security/).
 
 ## Что дальше
 
-- [Как это работает](https://rusih100.github.io/langfuse-hotswap/ru/how-it-works/): получение промпта, сравнение, пересборка, асинхронный путь.
-- [Конфигурация](https://rusih100.github.io/langfuse-hotswap/ru/configuration/): источники параметров, метки и версии.
+- [Понятия](https://rusih100.github.io/langfuse-hotswap/ru/concepts/): пять частей библиотеки на одной странице.
+- [Модели и ключи конфигурации](https://rusih100.github.io/langfuse-hotswap/ru/models/): что конфигурация промпта может менять и как.
 - [Настройка модели](https://rusih100.github.io/langfuse-hotswap/ru/customizing/): хуки, структурированный вывод, инструменты.
-- [Обработка ошибок](https://rusih100.github.io/langfuse-hotswap/ru/errors/) и [шаблоны](https://rusih100.github.io/langfuse-hotswap/ru/templates/).
+- [Как это работает](https://rusih100.github.io/langfuse-hotswap/ru/how-it-works/): получение промпта, сравнение, пересборка, сбои, асинхронный путь.
+- [Справочник API](https://rusih100.github.io/langfuse-hotswap/ru/api/).
 - [`examples/`](examples/): короткие скрипты, по одному на каждую возможность.
 
 Неофициальный проект, не связанный с Langfuse и LangChain. Лицензия MIT.

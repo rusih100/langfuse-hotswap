@@ -12,7 +12,7 @@ chain = (
 ```
 
 A hook with a parameter named `prompt` also receives the Langfuse prompt client, so it can read
-the prompt config. It gets a copy, so it cannot affect the SDK cache.
+the whole prompt config, allowed keys or not. It gets a copy, so it cannot affect the SDK cache.
 
 ```python
 chain = factory.create("support-reply").with_model(
@@ -31,8 +31,8 @@ tool_chain = factory.create("support-reply").bind_tools([open_ticket])
 Bind model arguments through a hook: `invoke` has no way to pass them, as in any `prompt | model`
 chain.
 
-Every copy returned by these methods has its own cache: it builds its own model, with its own
-HTTP client, and rebuilds on its own when the prompt changes. Create the variants you need once
+Every copy returned by these methods has its own cache: it builds its own chain and rebuilds on
+its own when the prompt changes. Create the variants you need once
 and reuse them, rather than deriving a new one per call.
 
 ## Run name and tracing

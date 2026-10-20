@@ -1,5 +1,5 @@
 """
-Fixtures. ``init_chat_model`` is replaced with a fake that records its parameters and returns ``FakeChatModel``.
+Fixtures: the fake Langfuse client, a factory over it with one fake model and a record of the builds.
 """
 
 from __future__ import annotations
@@ -14,24 +14,7 @@ from .fakes import FakeChatModel, FakeLangfuse
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
-
-
-@pytest.fixture
-def init_calls(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
-    """
-    Records the parameters passed to ``init_chat_model`` and returns ``FakeChatModel`` instead of a real model.
-    """
-
-    calls: list[dict[str, Any]] = []
-
-    def fake_init_chat_model(model: str, *, model_provider: str | None = None, **kwargs: Any) -> BaseChatModel:
-        calls.append({"model": model, "model_provider": model_provider, **kwargs})
-        if kwargs.get("fail"):
-            raise RuntimeError("provider is down")
-        return FakeChatModel(model=model, temperature=kwargs.get("temperature"), max_tokens=kwargs.get("max_tokens"))
-
-    monkeypatch.setattr("langfuse_hotswap._runnable.init_chat_model", fake_init_chat_model)
-    return calls
+    from langfuse.model import PromptClient
 
 
 @pytest.fixture
@@ -44,9 +27,26 @@ def client() -> FakeLangfuse:
 
 
 @pytest.fixture
-def factory(client: FakeLangfuse, init_calls: list[dict[str, Any]]) -> LangfuseChainFactory:
+def factory(client: FakeLangfuse) -> LangfuseChainFactory:
     """
-    Factory over the fake client with the allowlist disabled, so every unblocked config key reaches the model.
+    Factory over the fake client with the model ``fake`` and every config key allowed.
     """
 
-    return LangfuseChainFactory(cast("Any", client), allowed_config_keys=None)
+    return LangfuseChainFactory(cast("Any", client), {"fake": FakeChatModel(model="fake-0")}, allowed_config_keys="any")
+
+
+@pytest.fixture
+def builds(factory: LangfuseChainFactory, monkeypatch: pytest.MonkeyPatch) -> list[PromptClient]:
+    """
+    Records the prompt of every model build of ``factory``.
+    """
+
+    prompts: list[PromptClient] = []
+    model_for = factory._model_for
+
+    def recording(prompt: PromptClient) -> BaseChatModel:
+        prompts.append(prompt)
+        return model_for(prompt)
+
+    monkeypatch.setattr(factory, "_model_for", recording)
+    return prompts

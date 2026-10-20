@@ -4,6 +4,8 @@ Test doubles for the Langfuse client and the chat model.
 
 from __future__ import annotations
 
+import threading
+
 from typing import TYPE_CHECKING, Any, cast
 
 from langchain_core.callbacks import BaseCallbackHandler
@@ -13,6 +15,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 from langchain_core.runnables import Runnable, RunnableLambda
 from langfuse.api import ChatMessage, PlaceholderMessage, Prompt_Chat, Prompt_Text
 from langfuse.model import ChatPromptClient, PromptClient, TextPromptClient
+from pydantic import ConfigDict, Field
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
@@ -26,9 +29,12 @@ if TYPE_CHECKING:
 class FakeChatModel(BaseChatModel):
     """
     Chat model that answers ``model|temperature|last message|bound tool names``.
+    Like ``ChatOpenAI``, it stores the model name in ``model_name`` behind the alias ``model``.
     """
 
-    model: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    model_name: str = Field(alias="model")
     temperature: float | None = None
     max_tokens: int | None = None
 
@@ -38,7 +44,7 @@ class FakeChatModel(BaseChatModel):
 
     def _parts(self, messages: list[BaseMessage], kwargs: dict[str, Any]) -> list[str]:
         tool_names = ",".join(kwargs.get("tool_names", []))
-        return [self.model, str(self.temperature), str(messages[-1].content), tool_names]
+        return [self.model_name, str(self.temperature), str(messages[-1].content), tool_names]
 
     def _generate(
         self,
@@ -103,9 +109,10 @@ class FakeLangfuse:
             ("user", "Ingredients of {{dish}}"),
         ]
         self.text = "Ingredients of {{dish}}"
-        self.config: Any = {"model": "fake-1", "model_provider": "fake", "temperature": 0.1}
+        self.config: Any = {"model": "fake-1", "provider": "fake", "temperature": 0.1}
         self.error: Exception | None = None
         self.calls: list[dict[str, Any]] = []
+        self.threads: list[int] = []
 
     def __deepcopy__(self, memo: dict[int, Any]) -> FakeLangfuse:
         raise TypeError("the Langfuse client cannot be copied")
@@ -115,6 +122,7 @@ class FakeLangfuse:
 
     def get_prompt(self, name: str, **kwargs: Any) -> PromptClient:
         self.calls.append({"name": name, **kwargs})
+        self.threads.append(threading.get_ident())
         if self.error is not None:
             raise self.error
         if kwargs.get("fallback") is not None:

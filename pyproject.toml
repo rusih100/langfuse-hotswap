@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["langchain", "langfuse", "llm", "prompt"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -30,6 +30,9 @@ dependencies = [
     "typing-extensions>=4.12",
 ]
 
+[project.optional-dependencies]
+jinja2 = ["jinja2>=3"]
+
 [project.urls]
 Homepage = "https://github.com/rusih100/langfuse-hotswap"
 Documentation = "https://rusih100.github.io/langfuse-hotswap/"
@@ -39,6 +42,9 @@ Releases = "https://github.com/rusih100/langfuse-hotswap/releases"
 
 [dependency-groups]
 dev = [
+    "jinja2",
+    # The examples build their models with ChatOpenAI; they are type-checked, not run.
+    "langchain-openai",
     "pytest",
     "pytest-asyncio",
     "ruff",
@@ -134,7 +140,7 @@ docstring-quotes = "double"
 [tool.ruff.lint.flake8-annotations]
 suppress-dummy-args = false
 suppress-none-returning = false
-# Pass-through **kwargs for init_chat_model and the model methods are typed as Any.
+# Pass-through **kwargs for the model methods are typed as Any.
 allow-star-arg-any = true
 
 [tool.ruff.lint.isort]

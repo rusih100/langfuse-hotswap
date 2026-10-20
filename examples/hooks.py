@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from langchain_openai import ChatOpenAI
 from langfuse import get_client
 
 from langfuse_hotswap import LangfuseChainFactory
@@ -26,7 +27,7 @@ def tools_from_config(model: BaseChatModel, prompt: PromptClient) -> Runnable[La
     return model.bind_tools(tools) if tools else model
 
 
-factory = LangfuseChainFactory(get_client())
+factory = LangfuseChainFactory(get_client(), models={"openai": ChatOpenAI(model="gpt-5.5")})
 chain = (
     factory.create("support-reply")
     .with_model(lambda model: model.with_retry(stop_after_attempt=3))

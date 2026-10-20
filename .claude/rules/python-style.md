@@ -23,7 +23,8 @@ paths:
   clauses (see `_cache_is_warm`).
 - Group a module as: module docstring, imports, type variables, logger, private helper types,
   public classes, module-level helper functions.
-- Pure logic that does not need the runnable state belongs in its own module (see `_config.py`).
+- Pure logic that does not need the runnable state belongs in its own module or in a module-level
+  function (see `_prompts.py`).
 
 ## Code
 

@@ -4,11 +4,12 @@ Watch the model switch: run this, then move the ``production`` label in Langfuse
 
 import time
 
+from langchain_openai import ChatOpenAI
 from langfuse import get_client
 
 from langfuse_hotswap import LangfuseChainFactory
 
-factory = LangfuseChainFactory(get_client())
+factory = LangfuseChainFactory(get_client(), models={"openai": ChatOpenAI(model="gpt-5.5")})
 chain = factory.create("support-reply", cache_ttl_seconds=5)
 
 question = {"product": "Acme Mail", "language": "English", "question": "How do I reset my password?"}
