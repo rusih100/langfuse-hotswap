@@ -45,9 +45,13 @@ class LangfusePromptRunnable(Runnable[dict[str, Any], Output]):
         prompts: PromptManager[Runnable[dict[str, Any], Any]],
         model_for: Callable[[PromptClient], BaseChatModel],
         template_format_for: Callable[[PromptClient], TemplateFormat],
+        *,
+        default_hooks: Sequence[Callable[..., Runnable[LanguageModelInput, Any]]] = (),
     ) -> None:
         """
         ``model_for`` returns the chat model for a prompt, ``template_format_for`` its renderer.
+
+        ``default_hooks`` are applied after the hooks added by ``with_model``.
         """
 
         self.name = prompts.name
@@ -55,6 +59,7 @@ class LangfusePromptRunnable(Runnable[dict[str, Any], Output]):
         self._model_for = model_for
         self._template_format_for = template_format_for
         self._hooks: tuple[Callable[..., Runnable[LanguageModelInput, Any]], ...] = ()
+        self._default_hooks = tuple(default_hooks)
 
     # Model customization: every method returns a copy, the hooks are applied at build time.
 
@@ -157,7 +162,10 @@ class LangfusePromptRunnable(Runnable[dict[str, Any], Output]):
         """
 
         clone: LangfusePromptRunnable[Any] = LangfusePromptRunnable(
-            self._prompts.copy(), self._model_for, self._template_format_for
+            self._prompts.copy(),
+            self._model_for,
+            self._template_format_for,
+            default_hooks=self._default_hooks,
         )
         clone._hooks = self._hooks
         return clone
@@ -186,7 +194,8 @@ class LangfusePromptRunnable(Runnable[dict[str, Any], Output]):
             prompt_copy = copy.deepcopy(prompt)
             model: Runnable[LanguageModelInput, Any] = self._model_for(prompt_copy)
 
-            for hook in self._hooks:
+            # The factory hooks go last, so the chain hooks such as with_structured_output get the chat model.
+            for hook in (*self._hooks, *self._default_hooks):
                 model = hook(model, prompt=prompt_copy) if _accepts_prompt(hook) else hook(model)
 
             template = LangfusePromptTemplate.from_prompt(prompt_copy, self._template_format_for(prompt_copy))

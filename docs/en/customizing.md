@@ -35,6 +35,25 @@ Every copy returned by these methods has its own cache: it builds its own chain 
 its own when the prompt changes. Create the variants you need once
 and reuse them, rather than deriving a new one per call.
 
+## Hooks for every chain
+
+Hooks passed to the factory as `hooks` apply to every chain it creates, so a policy such as
+retries is set once per process:
+
+```python
+factory = LangfuseChainFactory(
+    client,
+    models,
+    hooks=[lambda model: model.with_retry(stop_after_attempt=3)],
+)
+chain = factory.create("support-reply").with_structured_output(Reply)
+```
+
+The hooks of the chain run first and the factory hooks wrap their result. Methods such as
+`with_structured_output` need the chat model itself, not the wrapper `with_retry` returns. A
+factory hook with a `prompt` parameter receives the prompt client, as a chain hook does, and the
+copies returned by `with_model` and the shortcuts keep the factory hooks.
+
 ## Run name and tracing
 
 The default run name is the prompt name; `with_config(run_name=...)` overrides it. The chain

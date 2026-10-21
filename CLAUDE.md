@@ -13,7 +13,7 @@ uv run ruff format . && uv run ruff check . && uv run ty check
 uv run mkdocs build --strict                # after a docs change
 ```
 
-Run all four before reporting a change as done. CI runs the same on Python 3.11–3.13.
+Run all four before reporting a change as done. CI runs the same on Python 3.11–3.14.
 
 ## Layout
 

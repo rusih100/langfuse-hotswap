@@ -54,7 +54,7 @@ values.
 
 ## Requirements
 
-Python 3.11+, `langchain>=1,<2`, `langchain-core>=1,<2`, `langfuse>=5,<6`, plus the LangChain
+Python 3.11+, `langchain-core>=1,<2`, `langfuse>=5,<6`, plus the LangChain
 package of every provider you use. The `jinja2` template format needs the `jinja2` extra. The
 package ships `py.typed`.
 

@@ -8,14 +8,26 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import pytest
 
-from pydantic import model_validator
+from langchain_core.runnables import RunnableLambda
+from pydantic import BaseModel, model_validator
 
 from langfuse_hotswap import ChainBuildError, LangfuseChainFactory, LangfusePromptRunnable
 
 from .fakes import FakeChatModel
 
 if TYPE_CHECKING:
+    from langchain_core.language_models import LanguageModelInput
+    from langchain_core.runnables import Runnable
+
     from .fakes import FakeLangfuse
+
+
+class Answer(BaseModel):
+    """
+    Structured output schema of the factory hook tests.
+    """
+
+    text: str
 
 
 def built_model(chain: LangfusePromptRunnable[Any]) -> FakeChatModel:
@@ -127,6 +139,100 @@ def test_factory_label_is_the_default_for_create(client: FakeLangfuse) -> None:
     factory.create("culinary", version=3).invoke({"dish": "x"})
 
     assert [(c["label"], c["version"]) for c in client.calls] == [("staging", None), ("latest", None), (None, 3)]
+
+
+# Factory hooks
+
+
+def test_factory_hook_applies_to_every_chain(client: FakeLangfuse) -> None:
+    """
+    A factory hook wraps the model of every chain the factory creates.
+    """
+
+    factory = LangfuseChainFactory(
+        cast("Any", client),
+        {"fake": FakeChatModel(model="fake-0")},
+        hooks=[lambda model: model.bind(tool_names=["factory"])],
+    )
+
+    first = factory.create("culinary").invoke({"dish": "borscht"})
+    second = factory.create("culinary", label="staging").invoke({"dish": "pelmeni"})
+
+    assert first.content == "fake-0|None|Ingredients of borscht|factory"
+    assert second.content == "fake-0|None|Ingredients of pelmeni|factory"
+
+
+def test_factory_hook_can_read_the_prompt(client: FakeLangfuse) -> None:
+    """
+    A factory hook with a prompt parameter receives the prompt with the full config.
+    """
+
+    factory = LangfuseChainFactory(
+        cast("Any", client),
+        {"fake": FakeChatModel(model="fake-0")},
+        hooks=[lambda model, prompt: model.bind(tool_names=prompt.config["tools"])],
+    )
+    client.config = {"provider": "fake", "tools": ["search", "code"]}
+
+    result = factory.create("culinary").invoke({"dish": "borscht"})
+
+    assert result.content == "fake-0|None|Ingredients of borscht|search,code"
+
+
+def test_chain_hooks_apply_before_factory_hooks(client: FakeLangfuse) -> None:
+    """
+    The hooks of the chain get the chat model and the factory hooks wrap their result.
+    """
+
+    seen: list[tuple[str, Runnable[LanguageModelInput, Any]]] = []
+
+    def factory_hook(model: Runnable[LanguageModelInput, Any]) -> Runnable[LanguageModelInput, Any]:
+        seen.append(("factory", model))
+        return model.with_retry(stop_after_attempt=2)
+
+    def chain_hook(model: Runnable[LanguageModelInput, Any]) -> Runnable[LanguageModelInput, Any]:
+        seen.append(("chain", model))
+        return model
+
+    factory = LangfuseChainFactory(cast("Any", client), {"fake": FakeChatModel(model="fake-0")}, hooks=[factory_hook])
+    chain = factory.create("culinary").with_model(chain_hook).with_structured_output(Answer)
+
+    result = chain.invoke({"dish": "borscht"})
+
+    assert result == Answer(text="fake-0|None|Ingredients of borscht|")
+    assert [name for name, _ in seen] == ["chain", "factory"]
+    assert isinstance(seen[0][1], FakeChatModel)
+
+
+def test_single_factory_hook_without_list_is_rejected(client: FakeLangfuse) -> None:
+    """
+    A single hook passed as hooks without a list is rejected by the factory.
+    """
+
+    with pytest.raises(TypeError, match="hooks must be a collection"):
+        LangfuseChainFactory(
+            cast("Any", client),
+            {"fake": FakeChatModel(model="fake-0")},
+            hooks=cast("Any", lambda model: model),
+        )
+
+
+def test_copy_from_with_model_keeps_factory_hooks(client: FakeLangfuse) -> None:
+    """
+    A copy returned by with_model keeps the factory hooks and adds its own before them.
+    """
+
+    factory = LangfuseChainFactory(
+        cast("Any", client),
+        {"fake": FakeChatModel(model="fake-0")},
+        hooks=[lambda model: model | RunnableLambda(lambda message: str(message.content).upper())],
+    )
+    chain = factory.create("culinary")
+
+    hooked = chain.with_model(lambda model: model.bind(tool_names=["chain"]))
+
+    assert hooked.invoke({"dish": "borscht"}) == "FAKE-0|NONE|INGREDIENTS OF BORSCHT|CHAIN"
+    assert chain.invoke({"dish": "borscht"}) == "FAKE-0|NONE|INGREDIENTS OF BORSCHT|"
 
 
 # Models and allowlist

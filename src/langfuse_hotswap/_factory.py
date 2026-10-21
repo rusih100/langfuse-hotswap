@@ -10,10 +10,11 @@ from langfuse_hotswap._prompts import PromptManager
 from langfuse_hotswap._runnable import LangfusePromptRunnable
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
 
-    from langchain_core.language_models import BaseChatModel
+    from langchain_core.language_models import BaseChatModel, LanguageModelInput
     from langchain_core.messages import BaseMessage
+    from langchain_core.runnables import Runnable
     from langfuse import Langfuse
     from langfuse.model import PromptClient
 
@@ -33,6 +34,7 @@ class LangfuseChainFactory:
         allowed_config_keys: Iterable[str] | Literal["any"] | None = None,
         label: str | None = None,
         template_format: TemplateFormat = "langfuse",
+        hooks: Iterable[Callable[..., Runnable[LanguageModelInput, Any]]] | None = None,
     ) -> None:
         """
         ``models`` maps a name to a chat model; the prompt config selects one of them with ``provider``.
@@ -40,13 +42,16 @@ class LangfuseChainFactory:
         ``allowed_config_keys`` names the model fields the config may override: ``None`` lets it
         override nothing, ``"any"`` every field. ``label`` is the prompt label ``create`` uses when
         it is given neither a label nor a version. ``template_format`` renders the prompts whose
-        config does not name one, or may not.
+        config does not name one, or may not. ``hooks`` are applied to the model of every runnable
+        after its own ``with_model`` hooks.
         """
 
         if not models:
             raise ValueError("models must not be empty")
         if isinstance(allowed_config_keys, str) and allowed_config_keys != "any":
             raise TypeError("allowed_config_keys must be a collection of strings, 'any' or None")
+        if callable(hooks):
+            raise TypeError("hooks must be a collection of hooks, wrap a single hook in a list")
 
         self._client = client
         self._models = dict(models)
@@ -54,6 +59,7 @@ class LangfuseChainFactory:
         self._default_provider = next(iter(self._models)) if len(self._models) == 1 else None
         self._label = label
         self._template_format = template_format
+        self._hooks = tuple(hooks or ())
 
     def create(
         self,
@@ -82,7 +88,12 @@ class LangfuseChainFactory:
 
         prompt_kwargs = {"label": label, "version": version, **get_prompt_kwargs}
         prompts: PromptManager[Any] = PromptManager(self._client, prompt_name, prompt_kwargs)
-        return LangfusePromptRunnable(prompts, self._model_for, self._template_format_for)
+        return LangfusePromptRunnable(
+            prompts,
+            self._model_for,
+            self._template_format_for,
+            default_hooks=self._hooks,
+        )
 
     def _model_for(self, prompt: PromptClient) -> BaseChatModel:
         """
