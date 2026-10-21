@@ -23,6 +23,6 @@ it is `template | model`, built from the current prompt version and rebuilt when
 changes. `with_model`, `with_structured_output` and `bind_tools` customize the model on every
 rebuild. See [Customizing the model](customizing.md).
 
-**Prompt manager.** `PromptManager`, one per chain, fetches the prompt through the SDK cache,
+**Prompt manager.** An internal object, one per chain, fetches the prompt through the SDK cache,
 compares it with the one the chain was built from and rebuilds under a lock. It keeps the last
 working chain through broken versions and Langfuse outages. See [How it works](how-it-works.md).

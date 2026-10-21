@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-21
+
+The first stable release: the public API follows Semantic Versioning from here on.
+
+### Added
+
+- `hooks` on `LangfuseChainFactory`: model hooks applied to every chain from `create`, after the
+  chain's own `with_model` hooks, so `with_structured_output` still gets the chat model. A single
+  hook passed without a list raises `TypeError`.
+- Python 3.14 support.
+
+### Changed
+
+- The package no longer depends on `langchain`; `langchain-core` is enough.
+
+### Removed
+
+- **Breaking.** `PromptManager` is no longer part of the public API.
+
 ## [0.2.0] - 2026-10-20
 
 ### Changed
@@ -81,7 +100,8 @@ All notable changes to this project are documented here. The format follows
 - `LangfusePromptTemplate` renders prompts with the Langfuse substitution rules, placeholders
   included, and attaches the prompt to the trace metadata.
 
-[Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/rusih100/langfuse-hotswap/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rusih100/langfuse-hotswap/releases/tag/v0.1.0

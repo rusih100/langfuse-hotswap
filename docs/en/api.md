@@ -12,6 +12,7 @@ LangfuseChainFactory(
     allowed_config_keys: Iterable[str] | Literal["any"] | None = None,
     label: str | None = None,
     template_format: Literal["langfuse", "f-string", "mustache", "jinja2"] = "langfuse",
+    hooks: Iterable[Callable[..., Runnable]] | None = None,
 )
 ```
 
@@ -22,6 +23,7 @@ LangfuseChainFactory(
 | `allowed_config_keys` | Config keys that may override model fields: `None` for none, a set, or `"any"`. A string other than `"any"` raises `TypeError`. |
 | `label` | Prompt label `create` uses when given neither a label nor a version. |
 | `template_format` | Renderer for prompts whose config does not set, or may not set, `template_format`. |
+| `hooks` | Model hooks applied to every chain after its own `with_model` hooks. A single callable instead of a collection raises `TypeError`. See [Hooks for every chain](customizing.md#hooks-for-every-chain). |
 
 ### `create`
 
@@ -51,21 +53,6 @@ A `Runnable[dict[str, Any], Output]`. Input is a dict of prompt variables; `Outp
 A `BaseChatPromptTemplate` over the messages of a Langfuse prompt.
 `LangfusePromptTemplate.from_prompt(prompt, template_format="langfuse")` builds it and attaches the
 prompt as `metadata["langfuse_prompt"]`. See [Templates](templates.md).
-
-## `PromptManager`
-
-```python
-PromptManager(client: Langfuse, prompt_name: str, prompt_kwargs: Mapping[str, Any])
-```
-
-| Member | Meaning |
-|---|---|
-| `name` | The prompt name. |
-| `resolve(build)` | Fetches the prompt and returns the value `build(prompt)` produced for it, rebuilding when the prompt changed. |
-| `aresolve(build, config)` | The same without blocking the event loop on HTTP. |
-| `copy()` | A manager for the same prompt with an empty cache. |
-
-`build` must raise `ChainBuildError` on failure; any other exception propagates.
 
 ## Errors
 

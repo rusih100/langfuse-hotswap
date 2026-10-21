@@ -17,7 +17,8 @@ import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-from langfuse_hotswap import ChainBuildError, PromptFetchError, PromptManager
+from langfuse_hotswap import ChainBuildError, PromptFetchError
+from langfuse_hotswap._prompts import PromptManager
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel, LanguageModelInput

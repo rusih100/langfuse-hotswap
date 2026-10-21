@@ -29,7 +29,7 @@ sequenceDiagram
    template is built and `template | model` is cached. The rebuild runs under a lock: concurrent
    callers build once, and calls that arrive during a rebuild are served by the previous chain.
 
-The fetch, the comparison and the rebuild live in `PromptManager`; the runnable adds the hooks and
+The fetch, the comparison and the rebuild live in the internal prompt manager; the runnable adds the hooks and
 the chain. A runnable holds one chain, for the current prompt, so create it once and reuse it: a
 chain created inside a request handler rebuilds on every request.
 
