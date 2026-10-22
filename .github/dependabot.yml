@@ -1,0 +1,15 @@
+version: 2
+
+# Only the actions are updated: they are pinned by SHA and do not update on their own.
+# The uv ecosystem is left out, because Dependabot raises the lower bounds in pyproject.toml
+# for it and that would undo what the "lowest" CI job checks.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
