@@ -40,6 +40,6 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv sync --locked
-      - run: uv pip install "langchain-core==1.0.0" "langfuse==5.0.1" "typing-extensions==4.12.2" "jinja2==3.0.0"
+      - run: uv pip install "langchain-core==1.0.0" "langfuse==4.0.0" "typing-extensions==4.12.2" "jinja2==3.0.0"
       - run: uv pip show langchain-core langfuse typing-extensions jinja2
       - run: uv run --no-sync pytest -q
