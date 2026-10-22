@@ -30,4 +30,4 @@ one is served at once while the refresh runs in the background, and the rules of
 `TemplateParser` the library renders with. `tests/test_sdk_contract.py` pins each of these against
 a real client with a stubbed HTTP API, so a change in the SDK fails the build instead of changing
 the behavior silently. CI runs the suite on the lowest supported `langfuse` and on the locked
-version; a nightly workflow runs it on the latest `langfuse` 5.x release.
+version; a nightly workflow runs it on the latest `langfuse` 4.x and 5.x releases.
