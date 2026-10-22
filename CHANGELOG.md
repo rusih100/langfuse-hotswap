@@ -13,7 +13,7 @@ All notable changes to this project are documented here. The format follows
 - `langfuse` 4.x support: the dependency is now `langfuse>=4,<6`. CI runs the tests on the lowest
   supported `langfuse` 4.0.0, and the nightly workflow on the latest 4.x and 5.x releases.
 
-## [1.0.0] - 2026-10-21
+## [1.0.1] - 2026-10-21
 
 The first stable release: the public API follows Semantic Versioning from here on.
 
@@ -109,7 +109,7 @@ The first stable release: the public API follows Semantic Versioning from here o
 
 [Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/rusih100/langfuse-hotswap/compare/v1.0.1...v1.1.0
-[1.0.0]: https://github.com/rusih100/langfuse-hotswap/compare/v0.2.0...v1.0.0
+[1.0.1]: https://github.com/rusih100/langfuse-hotswap/compare/v0.2.0...v1.0.1
 [0.2.0]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rusih100/langfuse-hotswap/releases/tag/v0.1.0
