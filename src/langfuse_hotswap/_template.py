@@ -86,7 +86,7 @@ class LangfusePromptTemplate(BaseChatPromptTemplate):
                 )
             result.extend(convert_to_messages(value))
 
-        return result
+        return [message for message in result if not (isinstance(message, HumanMessage) and not message.content)]
 
     def pretty_repr(self, html: bool = False) -> str:
         return "\n".join(

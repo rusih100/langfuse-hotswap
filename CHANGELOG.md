@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-02
+
+### Fixed
+
+- `LangfusePromptTemplate` drops human messages with empty content after rendering, including
+  messages supplied through placeholders, before passing them to the model.
+
 ## [1.1.0] - 2026-10-22
 
 ### Added
@@ -107,7 +114,8 @@ The first stable release: the public API follows Semantic Versioning from here o
 - `LangfusePromptTemplate` renders prompts with the Langfuse substitution rules, placeholders
   included, and attaches the prompt to the trace metadata.
 
-[Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/rusih100/langfuse-hotswap/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/rusih100/langfuse-hotswap/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/rusih100/langfuse-hotswap/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/rusih100/langfuse-hotswap/compare/v0.2.0...v1.0.1
 [0.2.0]: https://github.com/rusih100/langfuse-hotswap/compare/v0.1.1...v0.2.0

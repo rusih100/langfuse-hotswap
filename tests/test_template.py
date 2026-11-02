@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from langfuse_hotswap import ChainBuildError, LangfuseChainFactory
+from langfuse_hotswap import ChainBuildError, LangfuseChainFactory, LangfusePromptTemplate
 
 from .fakes import FakeChatModel, RecordingHandler
 
@@ -21,6 +21,49 @@ if TYPE_CHECKING:
 
 
 # Messages
+
+
+@pytest.mark.parametrize("content", ["", None])
+def test_empty_rendered_human_messages_are_dropped(client: FakeLangfuse, content: str | None) -> None:
+    """
+    Empty user messages are omitted after rendering, while the remaining messages keep their order.
+    """
+
+    client.messages = [("system", "Instructions"), ("user", "{{input}}"), ("assistant", "Ready")]
+    template = LangfusePromptTemplate.from_prompt(client.get_prompt("culinary"))
+
+    assert template.format_messages(input=content) == [SystemMessage("Instructions"), AIMessage("Ready")]
+
+
+def test_placeholder_drops_only_empty_human_messages(client: FakeLangfuse) -> None:
+    """
+    Empty human strings and lists are removed; other roles, whitespace and multimodal content remain.
+    """
+
+    client.messages = [("placeholder", "history")]
+    template = LangfusePromptTemplate.from_prompt(client.get_prompt("culinary"))
+    retained = [
+        SystemMessage(""),
+        AIMessage(""),
+        ToolMessage("", tool_call_id="call-1"),
+        HumanMessage(" "),
+        HumanMessage(content=[{"type": "image_url", "image_url": {"url": "https://example.com/image.png"}}]),
+        HumanMessage("Hello"),
+    ]
+
+    assert template.format_messages(history=[HumanMessage(""), *retained, HumanMessage(content=[])]) == retained
+
+
+def test_empty_text_prompt_becomes_no_messages(client: FakeLangfuse) -> None:
+    """
+    A text prompt that renders to an empty string produces an empty message list.
+    """
+
+    client.kind = "text"
+    client.text = "{{input}}"
+    template = LangfusePromptTemplate.from_prompt(client.get_prompt("culinary"))
+
+    assert template.format_messages(input="") == []
 
 
 def test_text_prompt_becomes_human_message(factory: LangfuseChainFactory, client: FakeLangfuse) -> None:
